@@ -23,8 +23,9 @@ import getpass
 import json
 import os
 import sys
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 from garminconnect import Garmin
@@ -33,6 +34,12 @@ HERE = Path(__file__).resolve().parent
 load_dotenv(HERE / ".env")
 
 TOKEN_DIR = os.path.expanduser(os.environ.get("GARMIN_TOKEN_DIR", "~/.garminconnect"))
+
+
+def local_today() -> date:
+    """'Today' in the user's timezone, not the server's (servers run UTC —
+    right after midnight in Madrid the UTC date is still yesterday)."""
+    return datetime.now(ZoneInfo(os.environ.get("FOOD_TZ", "Europe/Madrid"))).date()
 
 
 def _dump_tokens(api):
@@ -138,14 +145,14 @@ def main():
     if args.login:
         api = login(force_credentials=True)
         # smoke test that the tokens actually work — no database needed
-        today = date.today().isoformat()
+        today = local_today().isoformat()
         stats = api.get_stats(today) or {}
         print(f"token check OK: {today}, {stats.get('totalSteps')} steps so far")
         print(f"Now copy tokens to the server:  scp -r {TOKEN_DIR} user@server:~/")
         return
 
     api = login()
-    today = date.today()
+    today = local_today()
     for i in range(args.days):
         sync_day(api, today - timedelta(days=i))
     print("done.")
