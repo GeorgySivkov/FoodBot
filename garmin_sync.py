@@ -19,6 +19,7 @@ from anywhere:
 Tokens live ~a year; the library refreshes them automatically.
 """
 import argparse
+import getpass
 import json
 import os
 import sys
@@ -49,12 +50,19 @@ def login_from_tokens() -> Garmin:
 
 def login_with_credentials() -> Garmin:
     email = os.environ.get("GARMIN_EMAIL") or input("Garmin email: ").strip()
-    password = os.environ.get("GARMIN_PASSWORD") or input("Garmin password: ").strip()
-    api = Garmin(email=email, password=password, return_on_mfa=True)
-    status, ctx = api.login()
-    if status == "needs_mfa":
-        code = input("Garmin MFA code: ").strip()
-        api.resume_login(ctx, code)
+    password = os.environ.get("GARMIN_PASSWORD") or getpass.getpass("Garmin password (hidden): ")
+    try:
+        # modern garminconnect (>=0.3): explicit MFA round-trip
+        api = Garmin(email=email, password=password, return_on_mfa=True)
+        status, ctx = api.login()
+        if status == "needs_mfa":
+            code = input("Garmin MFA code: ").strip()
+            api.resume_login(ctx, code)
+    except TypeError:
+        # older garminconnect (e.g. on a laptop with old Python):
+        # login() prompts for MFA by itself
+        api = Garmin(email, password)
+        api.login()
     _dump_tokens(api)
     print(f"Logged in, tokens cached in {TOKEN_DIR}")
     # re-login from the token store so the profile is fully loaded
