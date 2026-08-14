@@ -1,0 +1,14 @@
+# secrets & local state
+.env
+.garminconnect/
+
+# python
+.venv/
+__pycache__/
+*.pyc
+
+# runtime
+*.log
+
+# personal (keep your diet plan out of the public repo)
+ration.md

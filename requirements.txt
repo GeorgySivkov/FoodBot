@@ -1,0 +1,5 @@
+psycopg[binary]>=3.2
+python-dotenv>=1.0
+python-telegram-bot>=22
+garminconnect>=0.2.19
+anthropic>=0.40        # optional: only used if ANTHROPIC_API_KEY is set
