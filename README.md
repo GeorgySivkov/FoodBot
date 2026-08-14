@@ -12,8 +12,9 @@ meal photo in TG ──► foodbot.py ──► Claude vision ──► health.m
                                                          │
 Garmin Connect  ──► garmin_sync.py (cron) ──► health.garmin_daily, health.weights
                                                          │
-   08:00 cron ──► morning.py ──► sleep, yesterday's deficit, today's plan, tips
-   22:30 cron ──► report.py  ──► eaten vs burned, deficit → kg/week, tomorrow's menu
+   08:00 daily  ──► morning.py ──► sleep, yesterday's deficit, today's plan, tips
+   22:30 daily  ──► report.py  ──► eaten vs burned, deficit → kg/week, tomorrow's menu
+   10:00 Sunday ──► weekly.py  ──► week recap + grocery list for the coming week
 ```
 
 ## What it looks like
@@ -58,6 +59,9 @@ The bot currently speaks Russian; all prompts live in `vision.py` / `advice.py` 
 - **Two daily briefings.** Morning: sleep, yesterday's recap, today's plan. Evening: totals,
   deficit converted to kg/week, weight trend, recommendations, and a concrete menu for tomorrow.
 - **Goal projection.** `/goal` fits your actual weigh-ins and predicts the date you hit target weight.
+- **Sunday grocery list.** Once a week: recap (average deficit, weight trend) plus a categorized
+  shopping list with quantities and a budget estimate — generated against what you actually ate,
+  so next week's menu rotates instead of repeating.
 - **LLM with a safety net.** Recommendations and menus are written by Claude; if the model is
   unavailable, rule-based fallbacks fire — the reports always arrive.
 - **Spend ledger.** Every model call is logged with its exact cost to a shared `usage_log` table,
@@ -113,9 +117,11 @@ WantedBy=multi-user.target
 ```
 
 ```cron
+# NB: cron runs in the SERVER's timezone (usually UTC) — shift the hours to match your local time
 15 13,18 * * * cd $HOME/foodbot && .venv/bin/python garmin_sync.py >> sync.log 2>&1
 0  8     * * * cd $HOME/foodbot && .venv/bin/python morning.py    >> report.log 2>&1
 30 22    * * * cd $HOME/foodbot && .venv/bin/python report.py     >> report.log 2>&1
+0  10    * * 0 cd $HOME/foodbot && .venv/bin/python weekly.py     >> report.log 2>&1
 ```
 
 All targets (daily kcal, protein, goal weight/date, timezone) are `.env` variables — no code edits to retune.
@@ -132,6 +138,9 @@ Set `VISION_MODEL` to a Haiku-class model to cut costs ~3× — photo estimates 
   and consistency matters more than absolute precision. Captions with grams tighten it up.
 - The Garmin API is **unofficial**. If Garmin changes something, sync may break until
   `pip install -U garminconnect`. Your password is only used once; cached tokens do the rest.
+- Garmin **blocks the login endpoint from datacenter IPs** (Cloudflare 429). Do the one-time
+  `--login` from a residential IP (your laptop) and `scp` the token dir to the server —
+  API calls with cached tokens work fine from anywhere.
 - This is a personal tool, single-user by design (the bot is locked to one Telegram ID).
 - Not medical advice. Aggressive cuts deserve a doctor's opinion, not a chatbot's.
 
